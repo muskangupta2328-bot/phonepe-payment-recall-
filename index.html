@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PhonePe Recall Request — Prototype</title>
+<style>
+  :root{
+    --navy:#1E1B4B; --navy2:#2E2A6B; --lav:#E5E1F5; --lavdark:#C9C2ED;
+    --green:#0FA968; --amber:#D97706; --red:#C0392B; --ink:#24243A; --mute:#6B6B85;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:#0f0e28; font-family:'Segoe UI',Arial,sans-serif; padding:30px 10px;
+  }
+  .caption{color:#cfcaf5; font-size:14px; margin-bottom:16px; text-align:center; max-width:400px;}
+  .phone{
+    width:375px; height:780px; background:#000; border-radius:44px; padding:14px;
+    box-shadow:0 30px 60px rgba(0,0,0,.5);
+  }
+  .screen{
+    width:100%; height:100%; background:#fff; border-radius:32px; overflow:hidden;
+    position:relative; display:flex; flex-direction:column;
+  }
+  .statusbar{height:28px; background:transparent; display:flex; align-items:center; justify-content:space-between; padding:0 22px; font-size:12px; color:#000; flex-shrink:0;}
+  .topbar{background:var(--navy); color:#fff; padding:14px 20px 16px; flex-shrink:0;}
+  .topbar h1{font-size:17px; margin:0; font-weight:700;}
+  .topbar .sub{font-size:12px; color:var(--lavdark); margin-top:2px;}
+  .content{flex:1; overflow-y:auto; padding:20px; background:#fff;}
+  .btn{
+    display:block; width:100%; padding:14px; border:none; border-radius:10px; font-size:15px; font-weight:700;
+    cursor:pointer; text-align:center; margin-top:10px;
+  }
+  .btn-primary{background:var(--navy); color:#fff;}
+  .btn-primary:hover{background:var(--navy2);}
+  .btn-danger{background:var(--red); color:#fff;}
+  .btn-ghost{background:transparent; color:var(--navy); border:1.5px solid var(--lavdark);}
+  .btn-link{background:none; color:var(--mute); text-decoration:underline; font-weight:400; font-size:13px; padding:6px 0;}
+  .field{width:100%; padding:12px 14px; border:1.5px solid var(--lavdark); border-radius:10px; font-size:14px; margin-top:10px; resize:none; font-family:inherit;}
+  .card{background:var(--lav); border-radius:12px; padding:14px; margin-top:14px;}
+  .txn-row{display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid #ece9fa; cursor:pointer;}
+  .txn-row:hover{background:#faf9ff;}
+  .txn-name{font-weight:700; font-size:14px; color:var(--ink);}
+  .txn-sub{font-size:11.5px; color:var(--mute); margin-top:2px;}
+  .txn-amt{font-weight:700; font-size:14px; color:var(--ink);}
+  .avatar{width:40px;height:40px;border-radius:50%;background:var(--navy);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;margin-right:12px;flex-shrink:0;}
+  .row-flex{display:flex; align-items:center;}
+  .badge{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.5px; padding:3px 8px; border-radius:20px; color:#fff;}
+  .badge-mask{background:var(--mute);}
+  .option{display:flex; align-items:center; gap:10px; padding:14px; border:1.5px solid var(--lavdark); border-radius:10px; margin-top:10px; cursor:pointer;}
+  .option.selected{border-color:var(--navy); background:var(--lav);}
+  .option input{width:18px;height:18px;}
+  .notice{background:#FFF7ED; border-radius:10px; padding:12px; margin-top:14px; font-size:12px; color:#7c4a00;}
+  .notice b{color:var(--amber);}
+  .step-track{display:flex; gap:4px; margin-bottom:14px;}
+  .step-dot{flex:1; height:4px; border-radius:2px; background:#ece9fa;}
+  .step-dot.done{background:var(--green);}
+  .success-icon{width:64px;height:64px;border-radius:50%;background:#e6f8ef;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;color:var(--green);}
+  .center{text-align:center;}
+  .ref{font-family:monospace; background:#f2f2f2; padding:8px 12px; border-radius:8px; font-size:12px; color:var(--mute); display:inline-block; margin-top:8px;}
+  .persona-tag{position:absolute; top:8px; right:8px; background:var(--navy); color:#fff; font-size:10px; font-weight:700; padding:3px 9px; border-radius:20px; z-index:5;}
+</style>
+</head>
+<body>
+<div class="caption">Happy path: Sender reports a misdirected payment → platform relays claim (no numbers shared) → recipient reviews and refunds → both sides resolved.</div>
+<div class="phone">
+  <div class="screen" id="screen"></div>
+</div>
+
+<script>
+let selectedReason = null;
+
+const screens = {};
+
+screens.history = () => `
+  <div class="persona-tag">SENDER · MEERA</div>
+  <div class="statusbar"><span>9:41</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Transaction History</h1><div class="sub">Balance ₹ 8,220</div></div>
+  <div class="content">
+    <div class="txn-row" onclick="go('detail')">
+      <div class="row-flex"><div class="avatar">R</div>
+        <div><div class="txn-name">Ramesh Plumber</div><div class="txn-sub">Today, 11:20 AM · UPI</div></div>
+      </div>
+      <div class="txn-amt">− ₹4,000</div>
+    </div>
+    <div class="txn-row">
+      <div class="row-flex"><div class="avatar">S</div>
+        <div><div class="txn-name">Sunita Tutor</div><div class="txn-sub">Yesterday · UPI</div></div>
+      </div>
+      <div class="txn-amt">− ₹1,500</div>
+    </div>
+    <div class="txn-row">
+      <div class="row-flex"><div class="avatar">M</div>
+        <div><div class="txn-name">Maid Services</div><div class="txn-sub">3 days ago · UPI</div></div>
+      </div>
+      <div class="txn-amt">− ₹2,000</div>
+    </div>
+    <div class="tier-desc small" style="color:var(--mute);font-size:11.5px;margin-top:16px;">Tap the ₹4,000 payment to "Ramesh Plumber" — this is the one Meera doesn't recognize.</div>
+  </div>`;
+
+screens.detail = () => `
+  <div class="persona-tag">SENDER · MEERA</div>
+  <div class="statusbar"><span>9:41</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Payment Details</h1><div class="sub">Ref: TXN9284710</div></div>
+  <div class="content">
+    <div class="center">
+      <div class="avatar" style="width:56px;height:56px;font-size:20px;margin:0 auto 10px;">R</div>
+      <div style="font-weight:700;font-size:17px;color:var(--ink);">Ramesh Plumber</div>
+      <span class="badge badge-mask">NUMBER HIDDEN</span>
+      <div style="font-size:26px;font-weight:800;color:var(--ink);margin-top:10px;">₹4,000</div>
+      <div style="font-size:12px;color:var(--mute);">Today, 11:20 AM · Sent via UPI ID</div>
+    </div>
+    <div class="notice"><b>Note:</b> PhonePe only shows the recipient's name to confirm the payment — their number is never displayed, even to you.</div>
+    <button class="btn btn-danger" onclick="go('report')">This wasn't who I meant to pay</button>
+    <button class="btn btn-link" onclick="go('history')">Back to history</button>
+  </div>`;
+
+screens.report = () => `
+  <div class="persona-tag">SENDER · MEERA</div>
+  <div class="statusbar"><span>9:41</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Report an Issue</h1><div class="sub">₹4,000 to Ramesh Plumber</div></div>
+  <div class="content">
+    <div class="tier-desc" style="font-size:12.5px;color:var(--mute);">What went wrong with this payment?</div>
+    <div class="option ${selectedReason==='wrong'?'selected':''}" onclick="selectReason('wrong')">
+      <input type="radio" ${selectedReason==='wrong'?'checked':''}>
+      <div><b style="font-size:13px;color:var(--ink);">Sent to the wrong person</b><div style="font-size:11.5px;color:var(--mute);">Saved contact, wrong UPI ID, or number reassigned</div></div>
+    </div>
+    <div class="option" onclick="alert('This case study focuses on the misdirected-payment path.')">
+      <input type="radio">
+      <div><b style="font-size:13px;color:var(--ink);">This looks like fraud</b><div style="font-size:11.5px;color:var(--mute);">Routes to a different, fraud-specific flow</div></div>
+    </div>
+    <button class="btn btn-primary" onclick="if(selectedReason)go('claim'); else alert('Please select a reason')">Continue</button>
+  </div>`;
+
+screens.claim = () => `
+  <div class="persona-tag">SENDER · MEERA</div>
+  <div class="statusbar"><span>9:41</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Submit Recall Request</h1><div class="sub">Step 2 of 2</div></div>
+  <div class="content">
+    <div class="notice"><b>How this works:</b> We'll send Ramesh a notice about your claim. Your number is never shared with them — and theirs is never shared with you.</div>
+    <div class="tier-desc" style="font-size:12px;color:var(--ink);margin-top:14px;">Add an optional note (templated, no contact details allowed):</div>
+    <textarea class="field" rows="3">This payment was meant for a different contact. Please review and refund if it wasn't intended for you.</textarea>
+    <div class="tier-desc" style="font-size:11px;color:var(--mute);margin-top:8px;">⚠ Limit: 1 recall request per transaction. Direct messaging is disabled to prevent misuse.</div>
+    <button class="btn btn-primary" onclick="go('submitted')">Submit Recall Request</button>
+  </div>`;
+
+screens.submitted = () => `
+  <div class="persona-tag">SENDER · MEERA</div>
+  <div class="statusbar"><span>9:41</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Request Sent</h1><div class="sub">We'll notify you of any update</div></div>
+  <div class="content center">
+    <div class="success-icon">✓</div>
+    <div style="font-weight:700;font-size:16px;color:var(--ink);">Recall request submitted</div>
+    <div style="font-size:12.5px;color:var(--mute);margin-top:6px;">Ramesh has been notified — no personal details were shared.</div>
+    <div class="ref">REF: RCL-88213-MR</div>
+    <button class="btn btn-ghost" onclick="go('recipient_notice')">→ See what the recipient sees</button>
+  </div>`;
+
+screens.recipient_notice = () => `
+  <div class="persona-tag">RECIPIENT · RAMESH</div>
+  <div class="statusbar"><span>9:44</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Payment Notice</h1><div class="sub">New alert</div></div>
+  <div class="content">
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;color:var(--ink);">A sender believes a payment to you was a mistake</div>
+      <div style="font-size:12.5px;color:var(--mute);margin-top:8px;">₹4,000 received today at 11:20 AM. The sender says: "This payment was meant for a different contact. Please review and refund if it wasn't intended for you."</div>
+    </div>
+    <div class="notice"><b>Note:</b> The sender's identity and number are not shared with you. You can choose to refund or decline — no reply or chat is required.</div>
+    <button class="btn btn-primary" onclick="go('recipient_review')">Review Payment</button>
+  </div>`;
+
+screens.recipient_review = () => `
+  <div class="persona-tag">RECIPIENT · RAMESH</div>
+  <div class="statusbar"><span>9:44</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Review Payment</h1><div class="sub">Ref: RCL-88213-MR</div></div>
+  <div class="content center">
+    <div style="font-size:26px;font-weight:800;color:var(--ink);margin-top:6px;">₹4,000</div>
+    <div style="font-size:12px;color:var(--mute);">Received today, 11:20 AM</div>
+    <div class="tier-desc" style="font-size:12.5px;color:var(--ink);margin-top:16px;text-align:left;">If this wasn't intended for you, you can send it back in one tap — funds go straight to the original sender, no number needed on either side.</div>
+    <button class="btn btn-primary" onclick="go('refunded')">Refund ₹4,000</button>
+    <button class="btn btn-ghost" onclick="go('declined')">Decline — I believe this is mine</button>
+  </div>`;
+
+screens.refunded = () => `
+  <div class="persona-tag">RECIPIENT · RAMESH</div>
+  <div class="statusbar"><span>9:45</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Refund Sent</h1><div class="sub">Ref: RCL-88213-MR</div></div>
+  <div class="content center">
+    <div class="success-icon">✓</div>
+    <div style="font-weight:700;font-size:16px;color:var(--ink);">₹4,000 refunded successfully</div>
+    <div style="font-size:12.5px;color:var(--mute);margin-top:6px;">Sent directly to the original sender's account. No personal details were exchanged at any point.</div>
+    <button class="btn btn-ghost" onclick="go('resolved')">→ See sender's final screen</button>
+  </div>`;
+
+screens.declined = () => `
+  <div class="persona-tag">RECIPIENT · RAMESH</div>
+  <div class="statusbar"><span>9:45</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Claim Declined</h1><div class="sub">Ref: RCL-88213-MR</div></div>
+  <div class="content center">
+    <div class="tier-desc" style="font-size:12.5px;color:var(--ink);margin-top:20px;">Ramesh has declined the recall request. The claim is logged, and if the sender wants to escalate, PhonePe can issue a masked dispute certificate for NPCI or police — still without revealing either number.</div>
+    <button class="btn btn-ghost" onclick="go('recipient_review')">← Back</button>
+  </div>`;
+
+screens.resolved = () => `
+  <div class="persona-tag">SENDER · MEERA</div>
+  <div class="statusbar"><span>9:45</span><span>●●●●  Wi‑Fi</span></div>
+  <div class="topbar"><h1>Money Recovered</h1><div class="sub">Ref: RCL-88213-MR</div></div>
+  <div class="content center">
+    <div class="success-icon">✓</div>
+    <div style="font-weight:700;font-size:16px;color:var(--ink);">₹4,000 has been refunded to you</div>
+    <div style="font-size:12.5px;color:var(--mute);margin-top:6px;">Resolved entirely in-app — Meera and Ramesh never saw each other's phone number.</div>
+    <button class="btn btn-ghost" onclick="go('history')">Start Over</button>
+  </div>`;
+
+function selectReason(r){ selectedReason = r; render('report'); }
+function go(name){ render(name); }
+function render(name){ document.getElementById('screen').innerHTML = screens[name](); }
+render('history');
+</script>
+</body>
+</html>
